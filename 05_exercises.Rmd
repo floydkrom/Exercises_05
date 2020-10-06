@@ -35,6 +35,7 @@ library(transformr)    # for "tweening" (gganimate)
 library(shiny)  # for creating interactive apps
 library(gifski)
 library(ggridges)
+library(ggimage)
 gs4_deauth()           # To not have to authorize each time you knit.
 theme_set(theme_minimal())
 ```
@@ -111,19 +112,19 @@ delay_small_trains <- small_trains %>%
   filter(!is.na(service)) %>%
   filter(departure_station %in% c("PARIS EST", "PARIS LYON"))
 
-delay2 <- delay_small_trains %>% 
+delay3 <- delay_small_trains %>% 
   ggplot(aes(x = avg_delay_all_departing, 
              y = service)) +
   geom_density_ridges() +
-  transition_time(year) +
+  transition_states(year) +
   labs(title = "Departing Delay by French Train Services",
        x = "Average Delay for Departing Trains (Minutes)",
        y = "Train Service",
-       subtitle = "Moving to {frame_time})") 
+       subtitle = "Moving to {next_state}") 
 ```
 
-```{r}
-anim_save("trains2.gif")
+```{r, eval=FALSE}
+anim_save("trains2.gif", delay3)
 ```
 
 ```{r, echo=FALSE}
@@ -141,13 +142,29 @@ knitr::include_graphics("trains2.gif")
 ```{r}
 garden_harvest %>%
   filter(vegetable == "tomatoes") %>%
+  complete(variety, date = seq.Date(min(date), max(date), by="day")) %>%
+  select(-c(vegetable, units)) %>%
+  mutate(weight = replace_na(weight, 0)) %>%
   group_by(variety, date) %>%
   summarize(daily_harvest_lb = sum(weight)*0.00220462) %>%
   mutate(cumsum_daily_harvest_lb = cumsum(daily_harvest_lb)) %>%
+  select(-daily_harvest_lb) %>%
   ggplot() +
-  geom_area(aes(x = date, y = daily_harvest_lb, fill = variety), position = position_stack(reverse = TRUE))
+    geom_area(aes(x = date, y = cumsum_daily_harvest_lb, fill = variety), position = position_stack()) +
+    transition_reveal(date) +
+    labs(title = "Cumulative Harvest of Tomatoe Variety over Time",
+       x = "Date",
+       y = "Cumulative Daily Harvest (Lb)",
+       subtitle = "Moving to {frame_along}") 
 ```
   
+```{r, eval=FALSE}
+anim_save("harvest1.gif")
+```
+  
+```{r, echo=FALSE}
+knitr::include_graphics("harvest1.gif")
+```
 
 ## Maps, animation, and movement!
 
@@ -161,12 +178,78 @@ garden_harvest %>%
   * CHALLENGE: use the `ggimage` package and `geom_image` to add a bike image instead of a red point. You can use [this](https://raw.githubusercontent.com/llendway/animation_and_interactivity/master/bike.png) image. See [here](https://goodekat.github.io/presentations/2019-isugg-gganimate-spooky/slides.html#35) for an example. 
   * Add something of your own! And comment on if you prefer this to the static map and why or why not.
   
+```{r, eval=FALSE}
+bike_image_link <- "https://raw.githubusercontent.com/llendway/animation_and_interactivity/master/bike.png"
+
+mallorca_bike_day7 <- mallorca_bike_day7 %>%
+  mutate(image = bike_image_link)
+
+mallorca_map <- get_stamenmap(
+    bbox = c(left = 2.28, bottom = 39.41, right = 3.03, top = 39.8), 
+    maptype = "terrain",
+    zoom = 11
+)
+ggmap(mallorca_map) +
+  geom_point(data = mallorca_bike_day7, 
+             aes(x = lon, y = lat),
+             color = "red", size = .5) +
+  geom_path(data = mallorca_bike_day7, 
+             aes(x = lon, y = lat, color = ele),
+             size = .5) +
+  labs(title = "Mallorca Bike Trail",
+       subtitle = "Time: {frame_along}") +
+  geom_image(data = mallorca_bike_day7,
+            aes(x = lon, y = lat, image = bike_image_link), 
+            size = 0.075) +
+  transition_reveal(time) +
+  scale_color_viridis_c(option = "magma") +
+  theme_map() +
+  theme(legend.background = element_blank())
+```
+  
+```{r, eval=FALSE}
+anim_save("bike1.gif")
+```
+
+```{r}
+knitr::include_graphics("bike1.gif")
+```
+
   5. In this exercise, you get to meet my sister, Heather! She is a proud Mac grad, currently works as a Data Scientist at 3M where she uses R everyday, and for a few years (while still holding a full-time job) she was a pro triathlete. You are going to map one of her races. The data from each discipline of the Ironman 70.3 Pan Am championships, Panama is in a separate file - `panama_swim`, `panama_bike`, and `panama_run`. Create a similar map to the one you created with my cycling data. You will need to make some small changes: 1. combine the files (HINT: `bind_rows()`, 2. make the leading dot a different color depending on the event (for an extra challenge, make it a different image using `geom_image()!), 3. CHALLENGE (optional): color by speed, which you will need to compute on your own from the data. You can read Heather's race report [here](https://heatherlendway.com/2016/02/10/ironman-70-3-pan-american-championships-panama-race-report/). She is also in the Macalester Athletics [Hall of Fame](https://athletics.macalester.edu/honors/hall-of-fame/heather-lendway/184) and still has records at the pool. 
   
 ```{r}
+total_trail <- panama_swim %>%
+  bind_rows(list(panama_run, panama_bike)) 
+  
+panama_map <- get_stamenmap(
+  bbox = c(left = -79.56, bottom = 8.88, right = -79.41, top = 9.001),
+  maptype = "terrain",
+  zoom = 13
+)
 
+ggmap(panama_map) +
+  geom_point(data = total_trail, 
+             aes(x = lon, y = lat, color = event, shape = event),
+             size = 2) +
+  geom_path(data = total_trail,
+            aes(x = lon, y = lat, color = event),
+            alpha = 0.8, size = 0.5) +
+  labs(title = "Ironman 70.3 Pan Am Championship",
+       subtitle = "Time: {frame_along}") +
+  scale_color_viridis_d(option = "magma") +
+  theme_map() +
+  theme(legend.background = element_blank()) +
+  transition_reveal(time)
 ```
   
+```{r, eval=FALSE}
+anim_save("panama.gif")
+```
+
+```{r}
+knitr::include_graphics("panama.gif")
+```
+
 ## COVID-19 data
 
   6. In this exercise, you are going to replicate many of the features in [this](https://aatishb.com/covidtrends/?region=US) visualization by Aitish Bhatia but include all US states. Requirements:
@@ -177,7 +260,84 @@ garden_harvest %>%
   * Use the `animate()` function to have 200 frames in your animation and make it 30 seconds long. 
   * Comment on what you observe.
   
+```{r, eval=FALSE}
+covid <- covid19 %>%
+  group_by(state) %>%
+  mutate(lag7 = lag(cases, 7, order_by = date)) %>%
+  replace_na(list(lag7 = 0)) %>%
+  mutate(past7_cases = cases - lag7)  %>%
+  filter(cases>20) %>%
+  ggplot() +
+  geom_path(aes(x = cases, y = past7_cases, group = state)) +
+  geom_point(aes(x = cases, y = past7_cases, group = state)) +
+  geom_text(aes(x = cases, y = past7_cases, label = state) +
+  labs(title = "COVID-19 Cases per 10,000 People by State",
+       subtitle = "Date: {frame_along}",
+       x = "Total Confirmed Cases",
+       y = "New Confirmed Cases (in the Past Week)") +
+  scale_x_log10(labels = scales::comma) +
+  scale_y_log10(labels = scales::comma) +
+  theme(legend.position = "none") +
+  transition_reveal(date)
+
+covid2 <- animate(covid, duration = 30, nframes = 200)
+```
+  
+```{r, eval=FALSE}
+anim_save("covid2.gif", covid2)
+```
+  
+```{r}
+knitr::include_graphics("covid2.gif")
+```
+  
   7. In this exercise you will animate a map of the US, showing how cumulative COVID-19 cases per 10,000 residents has changed over time. This is similar to exercises 11 & 12 from the previous exercises, with the added animation! So, in the end, you should have something like the static map you made there, but animated over all the days. Put date in the subtitle. Comment on what you see.
+  
+```{r}
+census_pop_est_2018 <- read_csv("https://www.dropbox.com/s/6txwv3b4ng7pepe/us_census_2018_state_pop_est.csv?dl=1") %>% 
+  separate(state, into = c("dot","state"), extra = "merge") %>% 
+  select(-dot) %>% 
+  mutate(state = str_to_lower(state))
+```
+  
+  
+```{r}
+covid19_population <-
+  covid19 %>% 
+  mutate(state = str_to_lower(state)) %>%
+  left_join(census_pop_est_2018,
+            by = "state") %>% 
+  group_by(state, est_pop_2018, date) %>%
+  summarize(cumulative_cases = max(cases)) %>%
+  mutate(cases_per_10000 = (cumulative_cases/est_pop_2018)*10000)
+
+states_map <- map_data("state")
+
+covid_map <- covid19_population %>% 
+  mutate(state = str_to_lower(state), weekday = wday(date, label=TRUE)) %>%
+  filter(weekday == "Fri") %>%
+  ggplot() +
+  geom_map(map = states_map,
+           aes(map_id = state, fill = cases_per_10000, group = date)) +
+  expand_limits(x = states_map$long, y = states_map$lat) + 
+  labs(title = "Cumulative COVID-19 cases per 10,000 people in the United States") +
+  theme(legend.background = element_blank()) + 
+  theme_map() +
+  scale_fill_viridis_c() +
+  transition_states(date, transition_length = 0) +
+  labs(subtitle = "Moving to {next_state}")
+
+animate(covid_map, duration = 30)
+```
+
+```{r, eval=FALSE}
+anim_save("covid.gif", covid_map)
+```
+  
+
+```{r}
+knitr::include_graphics("covid.gif")
+```
 
 ## Your first `shiny` app
 
