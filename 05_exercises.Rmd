@@ -13,7 +13,7 @@ output:
 
 
 ```{r setup, include=FALSE}
-#knitr::opts_chunk$set(echo = TRUE, error=TRUE, message=FALSE, warning=FALSE)
+knitr::opts_chunk$set(echo = TRUE, error=TRUE, message=FALSE, warning=FALSE)
 ```
 
 ```{r libraries}
@@ -139,7 +139,7 @@ knitr::include_graphics("trains2.gif")
   * Use the data you just made to create a static cumulative harvest area plot, with the areas filled with different colors for each vegetable and arranged (HINT: `fct_reorder()`) from most to least harvested (most on the bottom).  
   * Add animation to reveal the plot over date. 
   
-```{r}
+```{r, eval=FALSE}
 garden_harvest %>%
   filter(vegetable == "tomatoes") %>%
   complete(variety, date = seq.Date(min(date), max(date), by="day")) %>%
@@ -211,13 +211,16 @@ ggmap(mallorca_map) +
 anim_save("bike1.gif")
 ```
 
-```{r}
+```{r, echo=FALSE}
 knitr::include_graphics("bike1.gif")
 ```
 
+I personally prefer this animated map over the static map as there are details that we are able to observe on the animated map, such as the direction of the bike ride and the bike that represents Lisa on her bike. Lastly, doesn't almost any animated plot look better than a static plot? At least in my opinion.
+
+
   5. In this exercise, you get to meet my sister, Heather! She is a proud Mac grad, currently works as a Data Scientist at 3M where she uses R everyday, and for a few years (while still holding a full-time job) she was a pro triathlete. You are going to map one of her races. The data from each discipline of the Ironman 70.3 Pan Am championships, Panama is in a separate file - `panama_swim`, `panama_bike`, and `panama_run`. Create a similar map to the one you created with my cycling data. You will need to make some small changes: 1. combine the files (HINT: `bind_rows()`, 2. make the leading dot a different color depending on the event (for an extra challenge, make it a different image using `geom_image()!), 3. CHALLENGE (optional): color by speed, which you will need to compute on your own from the data. You can read Heather's race report [here](https://heatherlendway.com/2016/02/10/ironman-70-3-pan-american-championships-panama-race-report/). She is also in the Macalester Athletics [Hall of Fame](https://athletics.macalester.edu/honors/hall-of-fame/heather-lendway/184) and still has records at the pool. 
   
-```{r}
+```{r, eval=FALSE}
 total_trail <- panama_swim %>%
   bind_rows(list(panama_run, panama_bike)) 
   
@@ -246,7 +249,7 @@ ggmap(panama_map) +
 anim_save("panama.gif")
 ```
 
-```{r}
+```{r, echo=FALSE}
 knitr::include_graphics("panama.gif")
 ```
 
@@ -261,35 +264,44 @@ knitr::include_graphics("panama.gif")
   * Comment on what you observe.
   
 ```{r, eval=FALSE}
-covid <- covid19 %>%
+covid19 %>%
   group_by(state) %>%
   mutate(lag7 = lag(cases, 7, order_by = date)) %>%
   replace_na(list(lag7 = 0)) %>%
-  mutate(past7_cases = cases - lag7)  %>%
-  filter(cases>20) %>%
-  ggplot() +
-  geom_path(aes(x = cases, y = past7_cases, group = state)) +
-  geom_point(aes(x = cases, y = past7_cases, group = state)) +
-  geom_text(aes(x = cases, y = past7_cases, label = state) +
-  labs(title = "COVID-19 Cases per 10,000 People by State",
-       subtitle = "Date: {frame_along}",
-       x = "Total Confirmed Cases",
-       y = "New Confirmed Cases (in the Past Week)") +
+  mutate(new_cases_past_week = cases - lag7) %>%
+  filter(cases >= 20) %>%
+  
+  ggplot(aes(x = cases, y = new_cases_past_week, group = state)) +
+  geom_point(color = "red") +
+  geom_path(color = "light blue") +
+  geom_text(aes(label = state), check_overlap = TRUE) +
   scale_x_log10(labels = scales::comma) +
   scale_y_log10(labels = scales::comma) +
+  labs(
+    title = "Trajectory of US COVID-19 Confirmed Cases",
+    x = "Total Confirmed Cases",
+    y = "New Confirmed Cases (in the Past Week)",
+    subtitle = "Date: {frame_along}"
+  ) +
   theme(legend.position = "none") +
-  transition_reveal(date)
+  transition_reveal(date) -> covid19trajectory_gganim
 
-covid2 <- animate(covid, duration = 30, nframes = 200)
+animate(covid19trajectory_gganim,
+        nframes = 200,
+        duration = 30)
 ```
+  
   
 ```{r, eval=FALSE}
-anim_save("covid2.gif", covid2)
+anim_save("covid2.gif")
 ```
+
   
-```{r}
+```{r, echo=FALSE}
 knitr::include_graphics("covid2.gif")
 ```
+  
+  There is a lot to observe in this visualization as all states have been included. Once again, this plot very clearly shows the drastic surge in COVID-19 cases in New York and New Jersey at the start of the pandemic. We also observe how a state like Vermont does extremely well in dealing with COVID-19 as their new confirmed cases in a week drop quickly in June, then see an increase again at the end of June and fall again at the start of August. Furthermore, their total number of confirmed cases is extremely low, around 1,200 people during the entire pandemic. Additionally, we are also able to observe the rapid increase of cases in both Florida and Texas in July going through both August and September. 
   
   7. In this exercise you will animate a map of the US, showing how cumulative COVID-19 cases per 10,000 residents has changed over time. This is similar to exercises 11 & 12 from the previous exercises, with the added animation! So, in the end, you should have something like the static map you made there, but animated over all the days. Put date in the subtitle. Comment on what you see.
   
@@ -299,9 +311,10 @@ census_pop_est_2018 <- read_csv("https://www.dropbox.com/s/6txwv3b4ng7pepe/us_ce
   select(-dot) %>% 
   mutate(state = str_to_lower(state))
 ```
+
   
   
-```{r}
+```{r, eval=FALSE}
 covid19_population <-
   covid19 %>% 
   mutate(state = str_to_lower(state)) %>%
@@ -335,17 +348,15 @@ anim_save("covid.gif", covid_map)
 ```
   
 
-```{r}
+```{r, echo=FALSE}
 knitr::include_graphics("covid.gif")
 ```
-
-## Your first `shiny` app
-
-  8. This app will also use the COVID data. Make sure you load that data and all the libraries you need in the `app.R` file you create. Below, you will post a link to the app that you publish on shinyapps.io. You will create an app to compare states' cumulative number of COVID cases over time. The x-axis will be number of days since 20+ cases and the y-axis will be cumulative cases on the log scale (`scale_y_log10()`). We use number of days since 20+ cases on the x-axis so we can make better comparisons of the curve trajectories. You will have an input box where the user can choose which states to compare (`selectInput()`) and have a submit button to click once the user has chosen all states they're interested in comparing. The graph should display a different line for each state, with labels either on the graph or in a legend. Color can be used if needed. 
+ 
+ We clearly see the sad reality of COVID-19 in the United States. It starts off with a rapidly rising number of cases per 10,000 people in New York, Lousiana, and Arizona. Shortly after, the whole country follows with almost every state having more than 300 COVID-19 cases per state except for a couple states, such as Vermont, Maine, and Oregon. We ultimately see the United States light up in green and yellow which means that almost every state has close to 200-300 cases per 10,000 people.
   
 ## GitHub link
 
-  9. Below, provide a link to your GitHub page with this set of Weekly Exercises. Specifically, if the name of the file is 05_exercises.Rmd, provide a link to the 05_exercises.md file, which is the one that will be most readable on GitHub. If that file isn't very readable, then provide a link to your main GitHub page.
-
+  8. Below, provide a link to your GitHub page with this set of Weekly Exercises. Specifically, if the name of the file is 05_exercises.Rmd, provide a link to the 05_exercises.md file, which is the one that will be most readable on GitHub. If that file isn't very readable, then provide a link to your main GitHub page.
+  
 
 **DID YOU REMEMBER TO UNCOMMENT THE OPTIONS AT THE TOP?**
