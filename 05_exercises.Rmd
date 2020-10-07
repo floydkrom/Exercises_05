@@ -358,5 +358,4 @@ knitr::include_graphics("covid.gif")
 
   8. Below, provide a link to your GitHub page with this set of Weekly Exercises. Specifically, if the name of the file is 05_exercises.Rmd, provide a link to the 05_exercises.md file, which is the one that will be most readable on GitHub. If that file isn't very readable, then provide a link to your main GitHub page.
   
-
-**DID YOU REMEMBER TO UNCOMMENT THE OPTIONS AT THE TOP?**
+[here](https://github.com/floydkrom/Exercises_05/blob/main/05_exercises.md)
